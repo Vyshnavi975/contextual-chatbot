@@ -16,7 +16,6 @@ class TestDemoModeSelection(unittest.TestCase):
             # Also clear any keys that might be set in the real environment
             # for this process, so the test is deterministic.
             env = dict(os.environ)
-            env.pop("ANTHROPIC_API_KEY", None)
             env.pop("OPENAI_API_KEY", None)
             with mock.patch.dict(os.environ, env, clear=True):
                 client = LLMClient()

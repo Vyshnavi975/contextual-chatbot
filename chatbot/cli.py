@@ -65,7 +65,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--provider",
-        choices=["openai", "anthropic", "demo"],
+        choices=["openai", "demo"],
         default=None,
         help="Force a specific LLM backend instead of auto-detecting from "
         "environment variables.",

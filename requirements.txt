@@ -9,11 +9,9 @@
 # or install a subset, e.g.:
 #   pip install openai
 #   pip install flask
-#   pip install anthropic   # optional: use Claude instead of OpenAI
 
 openai>=1.40.0
 flask>=3.0.0
-anthropic>=0.34.0
 
 # Testing
 pytest>=7.4.0

@@ -4,15 +4,14 @@ llm.py
 
 Provider-agnostic LLM client for the contextual chatbot.
 
-Uses OpenAI's API by default. Optionally set ANTHROPIC_API_KEY to use
-Claude instead. If neither is configured, falls back to an offline demo
-mode -- a small rule-based / echo responder that requires no API key and
-no network access, so the whole project runs end-to-end out of the box.
+Uses OpenAI's API by default. If it isn't configured, falls back to an
+offline demo mode -- a small rule-based / echo responder that requires no
+API key and no network access, so the whole project runs end-to-end out
+of the box.
 
 Resolution order (first one that is configured wins):
     1. OpenAI     (OPENAI_API_KEY set, `openai` package installed)
-    2. Anthropic  (ANTHROPIC_API_KEY set, `anthropic` package installed)
-    3. Offline demo mode
+    2. Offline demo mode
 
 The public surface is a single class, `LLMClient`, with one method,
 `generate(messages, system_prompt=None) -> str`, so `cli.py` doesn't need
@@ -25,7 +24,6 @@ import os
 import random
 from typing import Dict, List, Optional
 
-DEFAULT_ANTHROPIC_MODEL = "claude-3-5-haiku-20241022"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -36,16 +34,15 @@ DEFAULT_SYSTEM_PROMPT = (
 
 class LLMClient:
     """
-    Wraps whichever LLM backend is available (OpenAI by default, with
-    Anthropic supported as an alternative, or an offline demo responder)
-    behind one simple `generate()` method.
+    Wraps whichever LLM backend is available (OpenAI, or an offline demo
+    responder) behind one simple `generate()` method.
 
     Attributes
     ----------
     provider: str
-        One of "openai", "anthropic", or "demo" -- indicates which
-        backend was actually selected, so the CLI can label output
-        clearly (especially important for demo mode).
+        One of "openai" or "demo" -- indicates which backend was
+        actually selected, so the CLI can label output clearly
+        (especially important for demo mode).
     """
 
     def __init__(
@@ -57,9 +54,9 @@ class LLMClient:
         Parameters
         ----------
         provider:
-            Force a specific backend ("openai", "anthropic", or "demo").
-            If None, auto-detect based on environment variables and
-            installed packages.
+            Force a specific backend ("openai" or "demo"). If None,
+            auto-detect based on environment variables and installed
+            packages.
         model:
             Override the default model name for the chosen provider.
         """
@@ -69,8 +66,6 @@ class LLMClient:
 
         if self.provider == "openai":
             self._client = self._build_openai_client()
-        elif self.provider == "anthropic":
-            self._client = self._build_anthropic_client()
         # "demo" provider needs no client.
 
     # ------------------------------------------------------------------ #
@@ -86,31 +81,18 @@ class LLMClient:
                 return "openai"
             except ImportError:
                 pass
-        if os.environ.get("ANTHROPIC_API_KEY"):
-            try:
-                import anthropic  # noqa: F401
-                return "anthropic"
-            except ImportError:
-                pass
         return "demo"
 
     @staticmethod
     def _default_model_for(provider: str) -> str:
         if provider == "openai":
             return os.environ.get("OPENAI_MODEL", DEFAULT_OPENAI_MODEL)
-        if provider == "anthropic":
-            return os.environ.get("ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL)
         return "demo-echo-v1"
 
     @staticmethod
     def _build_openai_client():
         import openai  # imported lazily so the package is optional
         return openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-
-    @staticmethod
-    def _build_anthropic_client():
-        import anthropic  # imported lazily so the package is optional
-        return anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
     # ------------------------------------------------------------------ #
     # Public API
@@ -143,8 +125,6 @@ class LLMClient:
 
         if self.provider == "openai":
             return self._generate_openai(messages, system_prompt)
-        if self.provider == "anthropic":
-            return self._generate_anthropic(messages, system_prompt)
         return self._generate_demo(messages, system_prompt)
 
     # ------------------------------------------------------------------ #
@@ -162,32 +142,6 @@ class LLMClient:
             messages=chat_messages,
         )
         return response.choices[0].message.content.strip()
-
-    def _generate_anthropic(self, messages: List[Dict[str, str]], system_prompt: str) -> str:
-        # Anthropic's API takes system context separately, and folded-in
-        # memory summaries (role "system") get merged into it too, since
-        # the Messages API only accepts "user"/"assistant" turns.
-        summary_notes = [m["content"] for m in messages if m["role"] == "system"]
-        full_system = system_prompt
-        if summary_notes:
-            full_system += "\n\nEarlier conversation summary:\n" + "\n".join(summary_notes)
-
-        chat_messages = [
-            {"role": m["role"], "content": m["content"]}
-            for m in messages
-            if m["role"] in ("user", "assistant")
-        ]
-        # The Anthropic API requires the message list to start with "user".
-        while chat_messages and chat_messages[0]["role"] != "user":
-            chat_messages.pop(0)
-
-        response = self._client.messages.create(
-            model=self.model,
-            max_tokens=1024,
-            system=full_system,
-            messages=chat_messages,
-        )
-        return "".join(block.text for block in response.content if block.type == "text").strip()
 
     # ------------------------------------------------------------------ #
     # Offline demo mode

@@ -27,9 +27,8 @@ API key.
   configurable number of messages, the oldest ones are folded into a
   compact rule-based summary entry instead of being kept verbatim forever,
   keeping requests to the LLM bounded in size.
-- **OpenAI-backed by default** — uses OpenAI's API out of the box, with an
-  alternative provider option (see Setup below); force a specific backend
-  with `--provider`.
+- **OpenAI-backed by default** — uses OpenAI's API out of the box (see
+  Setup below); force a specific backend with `--provider`.
 - **Offline demo mode** — works out of the box with **no API key and no
   network access**, using a small rule-based responder. Every demo reply is
   clearly prefixed with `[demo mode]`.
@@ -95,10 +94,7 @@ Optional override:
 export OPENAI_MODEL="gpt-4o-mini"   # default shown
 ```
 
-Alternatively, set `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`,
-plus `pip install anthropic`) to use Claude instead.
-
-If no key is set (or the matching SDK package isn't installed), the app
+If no key is set (or the `openai` package isn't installed), the app
 automatically falls back to **offline demo mode** — no crash, no silent
 failure, just a clearly labeled `[demo mode]` responder.
 
@@ -228,10 +224,9 @@ python3 app.py
    bounded no matter how long the conversation runs.
 2. **`chatbot/llm.py`** owns *how a reply is generated*: it uses OpenAI's
    API by default (`OPENAI_API_KEY`), lazily imports the SDK, and exposes
-   one `generate(messages) -> str` method (an alternative provider is also
-   supported — see Setup above). If no provider is configured it uses a
-   small rule-based responder (greeting/question/thanks/farewell pattern
-   matching) so the whole app still works with zero setup.
+   one `generate(messages) -> str` method. If no provider is configured it
+   uses a small rule-based responder (greeting/question/thanks/farewell
+   pattern matching) so the whole app still works with zero setup.
 3. **`chatbot/cli.py`** is the glue: an argparse-based entry point plus a
    REPL loop that reads user input, calls `ConversationMemory.add_message`,
    asks `LLMClient.generate` for a reply using the (possibly summarized)

@@ -6,10 +6,10 @@ into named threads, and automatically summarized/truncated once they get
 long, so the bot stays within a reasonable context/token budget no matter
 how long you talk to it.
 
-It runs **end-to-end with zero configuration**: if no `ANTHROPIC_API_KEY` or
-`OPENAI_API_KEY` is set, it falls back to a clearly-labeled offline
-"demo mode" that still exercises the full memory/threading pipeline without
-any network access or API key.
+It runs **end-to-end with zero configuration**: if no `OPENAI_API_KEY` is
+set, it falls back to a clearly-labeled offline "demo mode" that still
+exercises the full memory/threading pipeline without any network access or
+API key.
 
 ---
 
@@ -27,9 +27,9 @@ any network access or API key.
   configurable number of messages, the oldest ones are folded into a
   compact rule-based summary entry instead of being kept verbatim forever,
   keeping requests to the LLM bounded in size.
-- **Provider-agnostic LLM backend** — picks Anthropic or OpenAI automatically
-  based on which API key is set, or forces a specific provider with
-  `--provider`.
+- **OpenAI-backed by default** — uses OpenAI's API out of the box, with an
+  alternative provider option (see Setup below); force a specific backend
+  with `--provider`.
 - **Offline demo mode** — works out of the box with **no API key and no
   network access**, using a small rule-based responder. Every demo reply is
   clearly prefixed with `[demo mode]`.
@@ -49,7 +49,7 @@ contextual-chatbot/
 ├── chatbot/
 │   ├── __init__.py
 │   ├── memory.py          # ConversationMemory: JSON storage, threads, truncation/summarization
-│   ├── llm.py              # LLMClient: Anthropic / OpenAI / offline demo mode
+│   ├── llm.py              # LLMClient: OpenAI-backed, with offline demo mode
 │   └── cli.py               # interactive REPL + argument parsing
 ├── tests/
 │   ├── test_memory.py     # unit tests for storage/threading/truncation logic
@@ -77,33 +77,29 @@ source venv/bin/activate
 # Optional: install real-LLM and/or web-UI dependencies
 pip install -r requirements.txt
 # or install only what you need, e.g.:
-#   pip install anthropic
 #   pip install openai
 #   pip install flask
 ```
 
 ### Plugging in a real API key
 
-The app auto-detects the provider from environment variables — set **one**
-of these before running:
+The app uses OpenAI's API by default — set:
 
 ```bash
-# Use Anthropic (Claude)
-export ANTHROPIC_API_KEY="sk-ant-..."
-
-# Use OpenAI (GPT)
 export OPENAI_API_KEY="sk-..."
 ```
 
-Optional overrides:
+Optional override:
 
 ```bash
-export ANTHROPIC_MODEL="claude-3-5-haiku-20241022"   # default shown
-export OPENAI_MODEL="gpt-4o-mini"                     # default shown
+export OPENAI_MODEL="gpt-4o-mini"   # default shown
 ```
 
-If neither key is set (or the matching SDK package isn't installed), the
-app automatically falls back to **offline demo mode** — no crash, no silent
+Alternatively, set `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`,
+plus `pip install anthropic`) to use Claude instead.
+
+If no key is set (or the matching SDK package isn't installed), the app
+automatically falls back to **offline demo mode** — no crash, no silent
 failure, just a clearly labeled `[demo mode]` responder.
 
 ---
@@ -213,15 +209,15 @@ python3 app.py
 │                │            │                │
 │ ConversationMemory          │ LLMClient       │
 │ - load/save JSON            │ - auto-detects  │
-│ - add_message()             │   Anthropic /   │
-│ - truncate + summarize      │   OpenAI / demo │
-│ - list/delete threads       │ - generate()    │
+│ - add_message()             │   provider      │
+│ - truncate + summarize      │   (OpenAI /     │
+│ - list/delete threads       │   demo)         │
+│                             │ - generate()    │
 └───────┬───────┘            └───────┬────────┘
         │                            │
         ▼                            ▼
-  <thread>.json file          Anthropic / OpenAI
-  on disk                     API, or offline
-                               rule-based demo
+  <thread>.json file            OpenAI API,
+  on disk                    or offline demo
 ```
 
 1. **`chatbot/memory.py`** owns everything about *what has been said*:
@@ -230,12 +226,12 @@ python3 app.py
    oldest messages into a single rule-based summary entry (role
    `"summary"`) so the stored history (and what gets sent to the LLM) stays
    bounded no matter how long the conversation runs.
-2. **`chatbot/llm.py`** owns *how a reply is generated*: it auto-detects an
-   available provider from environment variables (`ANTHROPIC_API_KEY` /
-   `OPENAI_API_KEY`), lazily imports the matching optional SDK, and exposes
-   one `generate(messages) -> str` method. If no provider is configured it
-   uses a small rule-based responder (greeting/question/thanks/farewell
-   pattern matching) so the whole app still works with zero setup.
+2. **`chatbot/llm.py`** owns *how a reply is generated*: it uses OpenAI's
+   API by default (`OPENAI_API_KEY`), lazily imports the SDK, and exposes
+   one `generate(messages) -> str` method (an alternative provider is also
+   supported — see Setup above). If no provider is configured it uses a
+   small rule-based responder (greeting/question/thanks/farewell pattern
+   matching) so the whole app still works with zero setup.
 3. **`chatbot/cli.py`** is the glue: an argparse-based entry point plus a
    REPL loop that reads user input, calls `ConversationMemory.add_message`,
    asks `LLMClient.generate` for a reply using the (possibly summarized)
